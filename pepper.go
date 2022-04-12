@@ -16,7 +16,7 @@ type Pepper struct {
 	// 中间件
 	middleware []*MiddlewareFunc
 
-	// 通过这个属性来储存所有路由
+	// 使用数据结构 树 来保存处理函数一个节点对应一个路径
 	// 在内存中储存的结果差不多是这样：
 	// / -
 	//   |_ /router1
@@ -34,20 +34,20 @@ type Pepper struct {
 	//                      |
 	//                      |
 	//                      /subchild
-	router *Router
+	tree *TreeNode
 }
 
 func (p *Pepper) NewHandler(method string, uri string, handler HandlerFunc) {
-	if p.router == nil {
-		p.router = new(Router)
+	if p.tree == nil {
+		p.tree = new(TreeNode)
 	}
 
 	if uri == "/" {
-		p.router.NewHandler(method, handler)
+		p.tree.NewHandler(method, handler)
 		return
 	}
 
-	p.router.PushRouter(method, uri, handler, true)
+	p.tree.PushNode(method, uri, handler, true)
 }
 
 func (p *Pepper) All(uri string, handle HandlerFunc) {
@@ -88,7 +88,7 @@ func (p *Pepper) Use(middleware ...MiddlewareFunc) {
 }
 
 func (p *Pepper) UseGroup(uri string, group *Group) {
-	p.router.PushRouterByGroup(uri, group)
+	p.tree.PushNodeByGroup(uri, group)
 }
 
 // 运行服务器
@@ -131,21 +131,21 @@ func (p *Pepper) pepperHandler(res http.ResponseWriter, req *http.Request) {
 func (p *Pepper) callHandler(res http.ResponseWriter, req *http.Request, response Response, request *Request) {
 
 	// 判断路由是否存在
-	if p.router == nil {
-		p.router = new(Router)
+	if p.tree == nil {
+		p.tree = new(TreeNode)
 	}
 
 	method := req.Method
 	URI := req.URL.Path
 	if URI == "/" {
-		p.router.Call(method, response, request, p)
+		p.tree.Call(method, response, request, p)
 		return
 	}
 
 	URI = strings.TrimSuffix(URI, "/")
 	path := strings.Split(URI, "/")
 	pathLen := len(path)
-	currentRouter := p.router
+	currentRouter := p.tree
 
 	for i := 0; i < pathLen; i++ {
 		pathItem := path[i]

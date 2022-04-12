@@ -1,7 +1,7 @@
 package pepper
 
 type Group struct {
-	Router *Router
+	Node *TreeNode
 }
 
 func (p *Pepper) CreateGroup() *Group {
@@ -10,16 +10,16 @@ func (p *Pepper) CreateGroup() *Group {
 
 // 创建处理函数
 func (g *Group) NewHandler(method string, uri string, handler HandlerFunc) {
-	if g.Router == nil {
-		g.Router = new(Router)
+	if g.Node == nil {
+		g.Node = new(TreeNode)
 	}
 
 	if uri == "/" {
-		g.Router.NewHandler(method, handler)
+		g.Node.NewHandler(method, handler)
 		return
 	}
 
-	g.Router.PushRouter(method, uri, handler, true)
+	g.Node.PushNode(method, uri, handler, true)
 }
 
 func (g *Group) All(uri string, handler HandlerFunc) {
@@ -41,10 +41,10 @@ func (g *Group) CreateGroup() *Group {
 
 // 使用组
 func (g *Group) UseGroup(uri string, group *Group) {
-	if g.Router == nil {
-		g.Router = new(Router)
+	if g.Node == nil {
+		g.Node = new(TreeNode)
 	}
-	g.Router.PushRouterByGroup(uri, group)
+	g.Node.PushNodeByGroup(uri, group)
 }
 
 func NewGroup() *Group {

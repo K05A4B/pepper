@@ -24,10 +24,10 @@ func TestPepperGroup(t *testing.T) {
 	})
 
 	app := pepper.NewPepper()
-	app.UseGroup("/group1/", g1)
 	app.Get("/group1", func(res pepper.Response, req *pepper.Request) {
 		res.WriteString("Wellcome to group1 page")
 	})
+	app.UseGroup("/group1/", g1)
 	app.All("/group2/group3/a!:", func(res pepper.Response, req *pepper.Request) {
 		fmt.Println("path: ", req.TrimPath)
 		res.WriteString(req.TrimPath)
