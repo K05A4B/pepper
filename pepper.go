@@ -3,7 +3,6 @@ package pepper
 import (
 	"net/http"
 	"os"
-	"strings"
 )
 
 type Pepper struct {
@@ -63,9 +62,9 @@ func (p *Pepper) Post(uri string, handle HandlerFunc) {
 }
 
 func (p *Pepper) Static(uri string, dir string) {
-	p.All(uri + "!:", func(res Response, req *Request) {
+	p.All(uri+"!:", func(res Response, req *Request) {
 		file := dir + req.TrimPath
-		info, err := os.Stat(file)		
+		info, err := os.Stat(file)
 		if err != nil {
 			res.SendErrorPage(404)
 			return
@@ -87,6 +86,7 @@ func (p *Pepper) Use(middleware ...MiddlewareFunc) {
 	}
 }
 
+// 使用一个组
 func (p *Pepper) UseGroup(uri string, group *Group) {
 	p.tree.PushNodeByGroup(uri, group)
 }
@@ -101,77 +101,6 @@ func (p *Pepper) Run(addr string) {
 	}
 
 	http.ListenAndServe(addr, srv)
-}
-
-// 处理请求
-func (p *Pepper) pepperHandler(res http.ResponseWriter, req *http.Request) {
-	response := Response{
-		Resp: res,
-		ErrorPages: p.HttpErrorPages,
-	}
-
-	request := &Request{
-		Req:    req,
-		Method: req.Method,
-		Path:   req.URL.Path,
-		Proto:  req.Proto,
-		Host:   req.Host,
-	}
-
-	middlewareLen := len(p.middleware)
-
-	for i := 0; i < middlewareLen; i++ {
-		// 调用中间件
-		(*p.middleware[i])(p, response, request)
-	}
-
-	p.callHandler(res, req, response, request)
-}
-
-func (p *Pepper) callHandler(res http.ResponseWriter, req *http.Request, response Response, request *Request) {
-
-	// 判断路由是否存在
-	if p.tree == nil {
-		p.tree = new(TreeNode)
-	}
-
-	method := req.Method
-	URI := req.URL.Path
-	if URI == "/" {
-		p.tree.Call(method, response, request, p)
-		return
-	}
-
-	URI = strings.TrimSuffix(URI, "/")
-	path := strings.Split(URI, "/")
-	pathLen := len(path)
-	currentRouter := p.tree
-
-	for i := 0; i < pathLen; i++ {
-		pathItem := path[i]
-
-		if pathItem == "" {
-			continue
-		}
-
-		if currentRouter.Trusteeship {
-			request.TrimPath = strings.TrimPrefix(request.Path, currentRouter.PrefixPath)
-			currentRouter.Call(method, response, request, p)
-			return
-		}
-
-		nextRouter, ok := currentRouter.Next[pathItem]
-		if !ok {
-			p.HttpErrorPages.SendPage(404, response)
-			return
-		}
-
-		if pathLen == (i + 1) {
-			nextRouter.Call(method, response, request, p)
-		}
-
-		currentRouter = nextRouter
-	}
 }
 
 func NewPepper() *Pepper {

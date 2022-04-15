@@ -9,13 +9,14 @@ import (
 
 // 请求信息
 type Request struct {
-	Req      *http.Request
-	Method   string
-	Path     string
-	TrimPath string
-	Cookie   string
-	Proto    string
-	Host     string
+	Req        *http.Request
+	Method     string
+	Path       string
+	TrimPath   string
+	Cookie     string
+	Proto      string
+	Host       string
+	RemoteAddr string
 }
 
 func (r *Request) GetHeader(key string) string {

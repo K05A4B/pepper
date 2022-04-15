@@ -47,6 +47,7 @@ func (g *Group) UseGroup(uri string, group *Group) {
 	g.Node.PushNodeByGroup(uri, group)
 }
 
+// 创建组
 func NewGroup() *Group {
 	return &Group{}
 }

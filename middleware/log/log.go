@@ -108,7 +108,7 @@ func NewMiddleware(dir string) pepper.MiddlewareFunc {
 }
 
 func middleware(l *Log) pepper.MiddlewareFunc {
-	return func(p *pepper.Pepper, res pepper.Response, req *pepper.Request) {
+	return func(p *pepper.Pepper, res pepper.Response, req *pepper.Request) bool {
 		method := req.Method
 		path := req.Path
 		proto := req.Proto
@@ -117,5 +117,7 @@ func middleware(l *Log) pepper.MiddlewareFunc {
 		if err := l.Info(method, path, proto, addr); err != nil {
 			log.Println("ERROR: log outputs error;", err)
 		}
+
+		return true
 	}
 }

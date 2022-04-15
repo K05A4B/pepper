@@ -87,7 +87,21 @@ func (r *Response) WriteFile(file string, bufferSize int) (err error)
 
 ---
 
+### 向客户端传输数据: WriteReader() 函数
 
+io.Reader 接口发送数据到客户端
+
+```go
+func (r *Response) WriteReader(reader io.Reader, bufferSize int) error
+```
+
++ 参数
+  - `file string`: 文件路径
+  - `bufferSize int`: 缓冲区大小
++ 返回值
+  - `err error`: 错误信息
+
+---
 
 ### 向客户端传输数据: SendErrorPage() 函数
 

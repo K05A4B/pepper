@@ -43,3 +43,7 @@ func (e *ErrorPages) SendPage(code int, res Response) error {
 
 	return res.WriteFile(page, 5120)
 }
+
+func (e *ErrorPages) Set(code int, file string) {
+	e.Other[code] = file
+}

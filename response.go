@@ -68,8 +68,6 @@ func (r *Response) SetCookie(opt *http.Cookie) {
 
 // 发送文件
 func (r *Response) WriteFile(file string, bufferSize int) (err error) {
-	buffer := make([]byte, bufferSize)
-
 	ext := filepath.Ext(file)
 	mimeType := mime.TypeByExtension(ext)
 
@@ -86,9 +84,18 @@ func (r *Response) WriteFile(file string, bufferSize int) (err error) {
 
 	defer fp.Close()
 
+	r.WriteReader(fp, bufferSize)
+
+	return nil
+}
+
+// 通过 io.Reader 接口发送数据
+func (r *Response) WriteReader(reader io.Reader, bufferSize int) error {
+	buffer := make([]byte, bufferSize)
+
 	for {
 		n := bufferSize
-		n, err := fp.Read(buffer[:n])
+		n, err := reader.Read(buffer[:n])
 		if err != nil && err != io.EOF {
 			r.SetStatusCode(500)
 			return err

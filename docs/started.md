@@ -39,4 +39,4 @@ func root(res pepper.Response, req *pepper.Request) {
 
 [快查](./list.md)
 
-下一章: [Response 对象](./response.md)
+下一章: [Pepper 对象](./pepper.md)
