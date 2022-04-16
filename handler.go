@@ -1,6 +1,9 @@
 package pepper
 
 import (
+	"fmt"
+	"log"
+	"runtime"
 	"strings"
 )
 
@@ -64,6 +67,8 @@ func (h *HandlerPool) NewHandler(method string, handler HandlerFunc) {
 // 调用对应处理函数
 func (h *HandlerPool) Call(method string, res Response, req *Request, p *Pepper) {
 
+	defer recoverHandlerPanic(res, p)
+
 	var callBackFunction *HandlerFunc
 
 	method = strings.ToUpper(method)
@@ -100,5 +105,26 @@ func (h *HandlerPool) Call(method string, res Response, req *Request, p *Pepper)
 		(*callBackFunction)(res, req)
 	} else {
 		res.SendErrorPage(403)
+	}
+}
+
+func recoverHandlerPanic(res Response, p *Pepper) {
+	if err := recover(); err != nil {
+		res.SetHeader("Content-Type", "text/html")
+
+		const size = 64 << 10
+
+		if !p.DebugMode {
+			log.Printf("pepper: panic serving: %v\n", err)
+			res.SendErrorPage(500)
+			return
+		}
+
+		buf := make([]byte, size)
+		buf = buf[:runtime.Stack(buf, false)]
+		errContent := fmt.Sprintf("pepper: panic serving: %v\n%s\n", err, buf)
+
+		log.Print(errContent)
+		res.WriteString("<pre>" + errContent + "</pre>")
 	}
 }

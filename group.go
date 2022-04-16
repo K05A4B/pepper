@@ -1,7 +1,8 @@
 package pepper
 
 type Group struct {
-	Node *TreeNode
+	ExistRoot bool
+	Node      *TreeNode
 }
 
 func (p *Pepper) CreateGroup() *Group {
@@ -16,6 +17,7 @@ func (g *Group) NewHandler(method string, uri string, handler HandlerFunc) {
 
 	if uri == "/" {
 		g.Node.NewHandler(method, handler)
+		g.ExistRoot = true
 		return
 	}
 

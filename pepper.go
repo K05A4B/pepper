@@ -6,6 +6,10 @@ import (
 )
 
 type Pepper struct {
+
+	// 调试模式
+	DebugMode bool
+
 	KeyFile string // 密钥文件路径 填写后会自动开启 HTTPS
 	CrtFile string // 证书文件路径 填写后会自动开启 HTTPS
 
@@ -88,6 +92,14 @@ func (p *Pepper) Use(middleware ...MiddlewareFunc) {
 
 // 使用一个组
 func (p *Pepper) UseGroup(uri string, group *Group) {
+	if p.tree == nil {
+		p.tree = new(TreeNode)
+	}
+
+	if uri == "/" {
+		return
+	}
+
 	p.tree.PushNodeByGroup(uri, group)
 }
 

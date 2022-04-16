@@ -13,16 +13,16 @@ type TreeNode struct {
 
 // 推送新路由
 func (t *TreeNode) PushNode(method string, uri string, handler HandlerFunc, allowTrusteeship bool) {
+	if uri == "/" {
+		t.NewHandler(method, handler)
+		return
+	}
+
 	uri = strings.TrimRight(uri, "/")
 	path := strings.Split(uri, "/")
 	pathLen := len(path)
 
 	var currentNode *TreeNode = t
-
-	if uri == "/" {
-		t.NewHandler(method, handler)
-		return
-	}
 
 	for i := 0; i < pathLen; i++ {
 		pathItem := path[i]
@@ -80,14 +80,13 @@ func (t *TreeNode) PushNode(method string, uri string, handler HandlerFunc, allo
 
 // 推送没有处理函数的路由表
 func (t *TreeNode) PushNodeByGroup(uri string, g *Group) {
-	uri = strings.TrimRight(uri, "/")
-	path := strings.Split(uri, "/")
-	pathLen := len(path)
-
-	var currentNode *TreeNode = t
 
 	if uri == "/" {
 		for k, v := range g.Node.Next {
+			if t.Next == nil {
+				t.Next = make(map[string]*TreeNode)
+			}
+
 			_, ok := t.Next[k]
 			if !ok {
 				t.Next[k] = v
@@ -95,6 +94,12 @@ func (t *TreeNode) PushNodeByGroup(uri string, g *Group) {
 		}
 		return
 	}
+
+	uri = strings.TrimRight(uri, "/")
+	path := strings.Split(uri, "/")
+	pathLen := len(path)
+
+	var currentNode *TreeNode = t
 
 	for i := 0; i < pathLen; i++ {
 		pathItem := path[i]
@@ -120,5 +125,8 @@ func (t *TreeNode) PushNodeByGroup(uri string, g *Group) {
 		currentNode.Prev = prevNode
 	}
 
+	if g.ExistRoot {
+		currentNode.HandlerPool = g.Node.HandlerPool
+	}
 	currentNode.Next = g.Node.Next
 }

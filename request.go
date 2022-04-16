@@ -2,8 +2,11 @@ package pepper
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
+	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -102,4 +105,66 @@ func (r *Request) GetJson(i interface{}) error {
 	}
 
 	return json.Unmarshal(data, i)
+}
+
+func (r *Request) Scan(i interface{}) (err error) {
+	var params map[string][]string
+
+	iTypeOf := reflect.TypeOf(i)
+	iTypeOf = iTypeOf.Elem()
+	iValueOf := reflect.ValueOf(i)
+
+	if iTypeOf.Kind() != reflect.Struct {
+		return
+	}
+
+	if r.Req.Method == "POST" {
+		params = r.GetForm()
+	} else {
+		params = r.Req.URL.Query()
+	}
+
+	for pk, pv := range params {
+		if len(pv) == 0 {
+			continue
+		}
+
+		for i := 0; i < iTypeOf.NumField(); i++ {
+			typeField := iTypeOf.Field(i)
+			valueField := iValueOf.Elem().Field(i)
+			name := typeField.Tag.Get("name")
+			if name != pk {
+				continue
+			}
+
+			if !valueField.CanSet() {
+				err = errors.New("not settable: " + name)
+				return
+			}
+
+			switch typeField.Type.Kind() {
+			case reflect.Int64:
+				var res int64
+				res, err = strconv.ParseInt(pv[0], 10, 64)
+				if err != nil {
+					return
+				}
+				valueField.SetInt(res)
+			
+			case reflect.Float64:
+				var res float64
+				res, err = strconv.ParseFloat(pv[0], 64)
+				if err != nil {
+					return
+				}
+				valueField.SetFloat(res)
+
+			case reflect.String:
+				valueField.SetString(pv[0])
+			}
+		}
+
+	}
+
+	return
 }
