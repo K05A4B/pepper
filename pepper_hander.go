@@ -43,7 +43,7 @@ func (p *Pepper) callHandler(res http.ResponseWriter, req *http.Request, respons
 	method := req.Method
 	URI := req.URL.Path
 	if URI == "/" {
-		p.tree.Call(method, response, request, p)
+		p.tree.Call(method, response, request, p, p.tree)
 		return
 	}
 
@@ -61,7 +61,7 @@ func (p *Pepper) callHandler(res http.ResponseWriter, req *http.Request, respons
 
 		if currentNode.Trusteeship {
 			request.TrimPath = strings.TrimPrefix(request.Path, currentNode.PrefixPath)
-			currentNode.Call(method, response, request, p)
+			currentNode.Call(method, response, request, p, currentNode)
 			return
 		}
 
@@ -72,7 +72,7 @@ func (p *Pepper) callHandler(res http.ResponseWriter, req *http.Request, respons
 		}
 
 		if pathLen == (i + 1) {
-			nextNode.Call(method, response, request, p)
+			nextNode.Call(method, response, request, p, nextNode)
 		}
 
 		currentNode = nextNode

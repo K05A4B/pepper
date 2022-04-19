@@ -104,15 +104,15 @@ func (p *Pepper) UseGroup(uri string, group *Group) {
 }
 
 // 运行服务器
-func (p *Pepper) Run(addr string) {
+func (p *Pepper) Run(addr string) error {
 	srv := http.NewServeMux()
 	srv.HandleFunc("/", p.pepperHandler)
 
 	if p.CrtFile != "" && p.KeyFile != "" {
-		http.ListenAndServeTLS(addr, p.CrtFile, p.KeyFile, srv)
+		return http.ListenAndServeTLS(addr, p.CrtFile, p.KeyFile, srv)
 	}
 
-	http.ListenAndServe(addr, srv)
+	return http.ListenAndServe(addr, srv)
 }
 
 func NewPepper() *Pepper {

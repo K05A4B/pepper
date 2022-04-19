@@ -73,7 +73,7 @@ import (
 func main() {
     app := pepper.NewPepper()
 
-    // 这里以 pepper 库自带的日志中间件为例
+    // 这里以 pepper 框架自带的日志中间件为例
     // 中间件参数里填写日志保存的位置
     app.Use(mwlog.NewMiddleware("./log"))
 
@@ -103,7 +103,7 @@ import (
 func main() {
     app := pepper.NewPepper()
 
-    // 这里以 pepper 库自带的日志中间件为例
+    // 这里以 pepper 框架自带的日志中间件为例
     // 中间件参数里填写日志保存的位置
     app.Use(middleware)
 
@@ -166,11 +166,21 @@ func main() {
     group1 := pepper.NewGroup()
     group1.All("/test", handler)
 
+    // 访问 /group1 时执行的是下面的函数
+    group1.All("/", func(res pepper.Response, req *pepper.Request) {
+        res.WriteString("不是预期结果吧?")
+    })
+
     app := pepper.NewPepper()
 
     // 使用group1这个组
     // 访问 /group1/test 就可以访问到group1的test处理函数
     app.UseGroup("/group1", group1)
+
+    // 访问 /group1 时可能无法执行下面的函数，因为访问的是 group1这个组 的根目录
+    app.All("/group1", func(res pepper.Response, req *pepper.Request) {
+        res.WriteString("group1")
+    })
 
     app.Run(":1592")
 }
@@ -209,5 +219,73 @@ func main() {
 func hander(res pepper.Response, req *pepper.Request) {
     // 手动返回404页面
     res.SendErrorPage(404)
+}
+```
+
+# 给服务加证书
+
+通过给服务加证书来启动 HTTPS 
+
+```go
+package main
+
+import (
+    "github.com/kz91/pepper"
+)
+
+func main() {
+    app := pepper.NewPepper()
+
+    // 设置 密钥文件路径
+    app.KeyFile = "xxx.key"
+
+    // 设置证书文件路径
+    app.CrtFile = "xxx.crt"
+
+    app.All("/", handler)
+
+    app.Run(":1592")
+}
+
+func hander(res pepper.Response, req *pepper.Request) {
+    res.WriteString("Hello World")
+}
+```
+
+只要证书文件和密钥文件没有问题那么 直接访问[https://127.0.0.1:1592](https://127.0.0.1:1592)是没有问题的
+
+# 调试模式
+
+通过 pepper 对象的 DebugMode 来启动调试模式
+
+```go
+package main
+
+import (
+    "github.com/kz91/pepper"
+)
+
+type Test struct {
+    Test string
+}
+
+func main() {
+    app := pepper.NewPepper()
+
+    // 开启调试模式(调试模式默认关闭，且中间件可以修改调试模式的状态)
+    app.DebugMode = true
+
+    app.All("/", handler)
+
+    app.Run(":1592")
+}
+
+func hander(res pepper.Response, req *pepper.Request) {
+    var t *Test
+
+    // 这样写肯定会报错
+    // 在调试模式下会将错误信息传输到客户端
+    // 在非调试模式下会将 “服务器内部错误” 的页面发送到客户端 且控制台不会输出详细错误信息
+    t.Test = "test"
 }
 ```

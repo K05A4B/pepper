@@ -1,10 +1,9 @@
 package log
 
 import (
-	"log"
-
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"time"
 

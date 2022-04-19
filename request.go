@@ -111,6 +111,11 @@ func (r *Request) Scan(i interface{}) (err error) {
 	var params map[string][]string
 
 	iTypeOf := reflect.TypeOf(i)
+	if iTypeOf.Kind() != reflect.Ptr {
+		err = errors.New("parameter type must be point")
+		return
+	}
+
 	iTypeOf = iTypeOf.Elem()
 	iValueOf := reflect.ValueOf(i)
 
@@ -150,7 +155,7 @@ func (r *Request) Scan(i interface{}) (err error) {
 					return
 				}
 				valueField.SetInt(res)
-			
+
 			case reflect.Float64:
 				var res float64
 				res, err = strconv.ParseFloat(pv[0], 64)
@@ -158,6 +163,13 @@ func (r *Request) Scan(i interface{}) (err error) {
 					return
 				}
 				valueField.SetFloat(res)
+
+			case reflect.Bool:
+				if pv[0] == "true" || pv[0] == "1" {
+					valueField.SetBool(true)
+					break
+				}
+				valueField.SetBool(false)
 
 			case reflect.String:
 				valueField.SetString(pv[0])

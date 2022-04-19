@@ -65,7 +65,7 @@ func (h *HandlerPool) NewHandler(method string, handler HandlerFunc) {
 }
 
 // 调用对应处理函数
-func (h *HandlerPool) Call(method string, res Response, req *Request, p *Pepper) {
+func (h *HandlerPool) Call(method string, res Response, req *Request, p *Pepper, currentNode *TreeNode) {
 
 	defer recoverHandlerPanic(res, p)
 
@@ -104,7 +104,15 @@ func (h *HandlerPool) Call(method string, res Response, req *Request, p *Pepper)
 		// 调用函数
 		(*callBackFunction)(res, req)
 	} else {
-		res.SendErrorPage(403)
+		if !p.DebugMode {
+			res.SendErrorPage(403)
+			return
+		}
+
+		// 在debug模式下输出所有当前节点下的子节点
+		for key := range currentNode.Next {
+			res.WriteString("<a href='"+req.Path[1:]+"/" + key + "'>" + key + "</a><br>")
+		}
 	}
 }
 

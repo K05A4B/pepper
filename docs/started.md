@@ -1,6 +1,6 @@
 # 关于Pepper
 
-Pepper 是一个用go语言编写的轻量HTTP库
+Pepper 是一个用go语言编写的轻量HTTP框架
 
 # 实现原理
 使用[树](https://baike.baidu.com/item/%E6%A0%91/2699484)的某一个节点来保存对应的处理函数池
