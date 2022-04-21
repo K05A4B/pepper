@@ -1,8 +1,8 @@
 package session
 
 import (
+	"bufio"
 	"encoding/gob"
-	"errors"
 	"io"
 	"os"
 
@@ -14,16 +14,20 @@ type Session map[string]interface{}
 type Manager struct {
 	Data map[string]Session
 	file string
+	fp   *os.File
+	bfio *bufio.Writer
 }
 
 // 加载SESSION文件
 func (m *Manager) Load(file string) error {
 	m.file = file
-	f, err := os.OpenFile(file, os.O_CREATE|os.O_RDONLY, 0777)
-
-	if err != nil {
+	f, err := os.OpenFile(file, os.O_CREATE|os.O_RDWR, 0777)
+	if err != nil && err != io.EOF {
 		return err
 	}
+
+	m.fp = f
+	m.bfio = bufio.NewWriter(f)
 
 	if m.Data == nil {
 		m.Data = make(map[string]Session)
@@ -32,33 +36,11 @@ func (m *Manager) Load(file string) error {
 	decoder := gob.NewDecoder(f)
 	err = decoder.Decode(&m.Data)
 
-	if err == io.EOF {
-		return f.Close()
-	}
-
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return err
 	}
 
-	return f.Close()
-}
-
-// 保存 session
-func (m *Manager) Dump() error {
-	if m.file == "" {
-		return errors.New("file not found")
-	}
-	f, err := os.OpenFile(m.file, os.O_CREATE|os.O_WRONLY, 0777)
-	if err != nil {
-		return err
-	}
-
-	encoder := gob.NewEncoder(f)
-	if err := encoder.Encode(m.Data); err != nil {
-		return err
-	}
-
-	return f.Close()
+	return nil
 }
 
 // 创建一个用户的session
@@ -73,17 +55,48 @@ func (m *Manager) Create() string {
 }
 
 // 通过session id 获取session
-func (m *Manager) Get(id string) *Session {
+func (m *Manager) Get(id string, key string) interface{} {
 	if m.Data == nil {
 		m.Data = make(map[string]Session)
 	}
 
-	Data, ok := m.Data[id]
+	data, ok := m.Data[id]
 	if !ok {
 		return nil
 	}
 
-	return &Data
+	value, ok := data[key]
+	if !ok {
+		return nil
+	}
+
+	return value
+}
+
+func (m *Manager) Set(id string, key string, value interface{}) error {
+	if m.Data == nil {
+		m.Data = make(map[string]Session)
+	}
+
+	data := m.Data[id]
+	if data == nil {
+		data = make(Session)
+	}
+	data[key] = value
+
+	return m.Flush()
+}
+
+func (m *Manager) Flush() error {
+	encoder := gob.NewEncoder(m.fp)
+	if err := encoder.Encode(m.Data); err != nil {
+		return err
+	}
+	return m.bfio.Flush()
+}
+
+func (m *Manager) Close() error {
+	return m.fp.Close()
 }
 
 func NewManager() *Manager {

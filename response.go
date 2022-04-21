@@ -19,6 +19,7 @@ type FuncMap map[string]interface{}
 type Response struct {
 	Resp       http.ResponseWriter
 	ErrorPages *ErrorPages
+	Code       int
 }
 
 // 发送json格式数据
@@ -52,6 +53,7 @@ func (r *Response) WriteString(str string) (int, error) {
 
 // 设置状态码
 func (r *Response) SetStatusCode(code int) {
+	r.Code = code
 	r.Resp.WriteHeader(code)
 }
 

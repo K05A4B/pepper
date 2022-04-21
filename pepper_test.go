@@ -3,12 +3,10 @@ package pepper_test
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"testing"
 
 	"github.com/kz91/pepper"
 	"github.com/kz91/pepper/middleware/log"
-	"github.com/kz91/pepper/session"
 	"github.com/kz91/pepper/upload"
 )
 
@@ -98,6 +96,7 @@ func TestPepperStatic(t *testing.T) {
 func TestPepperUpload(t *testing.T) {
 	app := pepper.NewPepper()
 	app.HttpErrorPages.NotFound = "./404.html"
+	app.DebugMode = true
 	app.Post("/", func(res pepper.Response, req *pepper.Request) {
 		type FileRes struct {
 			Success bool   `json:"success"`
@@ -114,9 +113,12 @@ func TestPepperUpload(t *testing.T) {
 		}
 
 		r := &upload.Rule{
-			MaxSize: 1024 * 1024 * 30,
-			// MaxNumber: 2,
+			MaxSize:   1024 * 1024 * 30,
+			MinSize:   1048576,
+			MaxNumber: 2,
 		}
+		// r.Mime.Append("text/html")
+		// r.Mime.Append("audio/mpeg")
 
 		f, err := upload.NewReceive(req, "files1", r)
 		if err != nil {
@@ -130,31 +132,32 @@ func TestPepperUpload(t *testing.T) {
 		}
 
 		for {
-			file, err := f.Next()
+			var ErrorText string
+			file, err := f.Receive("./test_dir", 1024*1024*10)
 			if err == io.EOF {
 				break
 			}
 
+			result.Code = 0
+			result.Success = true
+
 			if err != nil {
+				result.Code = 500
 				result.Success = false
-				result.Error = err.Error()
-				break
+				ErrorText = err.Error()
+				// result.Error = ErrorText
 			}
 
-			_, err = file.Receive("./test", 1024)
-			var recvError string
-			if err != nil {
-				recvError = err.Error()
-			}
-
+			// if err == nil {
 			fmt.Println("receive", file.Name)
-
+			fmt.Println("Content-Type", file.Mime)
 			result.Result = append(result.Result, FileRes{
-				Error:   recvError,
+				Error:   ErrorText,
 				Success: err == nil,
 				Name:    file.Name,
 				Msg:     file.Path,
 			})
+			// }
 		}
 
 		res.Json(result)
@@ -179,45 +182,40 @@ func TestPepperTpl(t *testing.T) {
 	app.Run("127.0.0.1:8080")
 }
 
-func TestSessionn(t *testing.T) {
-	app := pepper.NewPepper()
-	app.All("/", func(res pepper.Response, req *pepper.Request) {
-		sid := req.GetCookieValue("SID")
-		m := session.NewManager()
-		
-		if err := m.Load("./test_dir/session.dat"); err != nil {
-			fmt.Println(err)
-			return
-		}
+// func TestSessionn(t *testing.T) {
+// 	app := pepper.NewPepper()
+// 	app.DebugMode = true
+// 	app.All("/", func(res pepper.Response, req *pepper.Request) {
+// 		sid := req.GetCookieValue("SID")
+// 		m := session.NewManager()
 
-		if sid == "" {
-			sid = m.Create()
-			res.SetCookie(&http.Cookie{
-				Name:   "SID",
-				Value:  sid,
-				MaxAge: 1000 * 60 * 60 * 6,
-			})
-		}
+// 		if err := m.Load("./test_dir/session.dat"); err != nil {
+// 			fmt.Println("load", err)
+// 			return
+// 		}
 
-		data := *m.Get(sid)
-		if data == nil {
-			return
-		}
+// 		if sid == "" {
+// 			sid = m.Create()
+// 			res.SetCookie(&http.Cookie{
+// 				Name:   "SID",
+// 				Value:  sid,
+// 				MaxAge: 1000 * 60 * 60 * 6,
+// 			})
+// 		}
 
-		// data["name"] = req.Query("name")
-		// data["sex"] = req.Query("sex")
+// 		name := m.Get(sid, "name")
+// 		if name == nil {
+// 			nameQuery := req.Query("name")
+// 			if name != "" {
+// 				m.Set(sid, "name", nameQuery)
+// 			}
+// 			name = m.Get(sid, "name")
+// 		}
 
-		if err := m.Dump(); err != nil {
-			fmt.Println(err, "DUMP")
-			return
-		}
+// 		res.SetHeader("Content-Type", "text/html")
 
-		res.SetHeader("Content-Type", "text/html")
-
-		res.WriteString("name: ")
-		res.WriteString(data["name"].(string))
-
-		res.WriteString("<br>sex: " + data["sex"].(string))
-	})
-	app.Run(":8081")
-}
+// 		res.WriteString("name: ")
+// 		res.WriteString(name.(string))
+// 	})
+// 	app.Run(":8081")
+// }

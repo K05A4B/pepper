@@ -99,11 +99,12 @@ func (h *HandlerPool) Call(method string, res Response, req *Request, p *Pepper,
 		callBackFunction = All
 	}
 
+	if res.Code == 0 {
+		res.Code = 200
+	}
+
 	// 判断处理函数是否为 nil
-	if callBackFunction != nil {
-		// 调用函数
-		(*callBackFunction)(res, req)
-	} else {
+	if callBackFunction == nil {
 		if !p.DebugMode {
 			res.SendErrorPage(403)
 			return
@@ -111,14 +112,17 @@ func (h *HandlerPool) Call(method string, res Response, req *Request, p *Pepper,
 
 		// 在debug模式下输出所有当前节点下的子节点
 		for key := range currentNode.Next {
-			res.WriteString("<a href='"+req.Path[1:]+"/" + key + "'>" + key + "</a><br>")
+			res.WriteString("<a href='" + req.Path[1:] + "/" + key + "'>" + key + "</a><br>")
 		}
+		return
 	}
+
+	// 调用函数
+	(*callBackFunction)(res, req)
 }
 
 func recoverHandlerPanic(res Response, p *Pepper) {
 	if err := recover(); err != nil {
-		res.SetHeader("Content-Type", "text/html")
 
 		const size = 64 << 10
 
@@ -133,6 +137,6 @@ func recoverHandlerPanic(res Response, p *Pepper) {
 		errContent := fmt.Sprintf("pepper: panic serving: %v\n%s\n", err, buf)
 
 		log.Print(errContent)
-		res.WriteString("<pre>" + errContent + "</pre>")
+		res.WriteString(errContent)
 	}
 }

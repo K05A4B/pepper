@@ -4,8 +4,20 @@ import (
 	"errors"
 	"io"
 	"mime/multipart"
-	"path/filepath"
+	"net/http"
+	"os"
+
+	"github.com/kz91/pepper/internal/utils"
 )
+
+type FileInfo struct {
+	Size int64
+	Name string
+	Path string
+	Mime string
+
+	NotTrustworthyMime string
+}
 
 type Files struct {
 	reader  *multipart.Reader
@@ -14,57 +26,120 @@ type Files struct {
 	partNum int
 }
 
-func (fs *Files) Next() (f *File, err error) {
+func (f *Files) Receive(dir string, size int) (info *FileInfo, err error) {
+	var part *multipart.Part
 
-	if fs == nil {
+	info = &FileInfo{}
+
+	if f == nil {
 		err = errors.New("invalid memory address or nil pointer dereference")
 		return
 	}
 
-	var part *multipart.Part
-	rule := fs.rule
-
 	for {
-		part, err = fs.reader.NextPart()
-		if err == io.EOF {
-			break
-		}
-
+		part, err = f.reader.NextPart()
 		if err != nil {
 			return
 		}
 
-		name := part.FileName()
+		info.Name = part.FileName()
+
 		form := part.FormName()
-		mime := part.Header.Get("Content-Type")
 
-		// 判断是不是这个form
-		if form != fs.key {
-			continue
+		if form == f.key {
+			break
 		}
+	}
 
-		if (fs.partNum + 1) > fs.rule.MaxNumber && fs.rule.MaxNumber != 0 {
-			err = errors.New("maximum number exceeded")
-			return
-		}
-
-		fs.partNum++
-
-		// 检查 mime 是否允许 &&
-		if !rule.Mime.Exist(mime) && !rule.Mime.Exist(filepath.Ext(name)) &&
-			rule.Mime.Len() != 0 {
-			err = errors.New("this file type is not supported")
-			return
-		}
-
-		f = &File{
-			part: part,
-			rule: rule,
-			Name: name,
-			Mime: mime,
-		}
-
+	if (f.partNum+1) > f.rule.MaxNumber && f.rule.MaxNumber != 0 {
+		err = errors.New("maximum number exceeded")
 		return
+	}
+
+	info, err = f.save(part, dir, size)
+	return
+}
+
+func (f *Files) save(part *multipart.Part, dir string, size int) (info *FileInfo, err error) {
+
+	rule := f.rule
+
+	filePath := dir + "/" + utils.GetRandString(40)
+	if part == nil {
+		err = errors.New("file is nil")
+		return
+	}
+
+	info = &FileInfo{
+		Name: part.FileName(),
+		Path: filePath,
+	}
+
+	info = &FileInfo{
+		Path: filePath,
+		Name: part.FileName(),
+	}
+
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0777)
+	if err != nil {
+		return
+	}
+
+	defer part.Close()
+	defer file.Close()
+
+	buffer := make([]byte, size)
+
+	n := size
+	for {
+		n, err = part.Read(buffer[:n])
+		if err != nil && err != io.EOF {
+			return
+		}
+
+		if info.Mime == "" || info.NotTrustworthyMime == "" {
+			info.Mime = http.DetectContentType(buffer[:n])
+			info.NotTrustworthyMime = part.Header.Get("Content-Type")
+		}
+
+		if info.Size == 0 {
+			// 检查 mime 是否允许
+			if !rule.Mime.Exist(info.Mime) && rule.Mime.Len() != 0 {
+				err = errors.New("this file type is not supported")
+				return
+			}
+		}
+
+		_, err = file.Write(buffer[:n])
+		if err != nil {
+			return
+		}
+
+		info.Size += int64(n)
+
+		// 如果有规则信息则进行合格检测
+		if rule != nil {
+			if err == io.EOF || n == 0 && info.Size < rule.MinSize {
+				file.Close()
+				err = os.Remove(info.Path)
+				err = errors.New("the file size is too small")
+				part.Close()
+				return
+			}
+
+			if info.Size > rule.MaxSize && rule.MaxSize > rule.MinSize {
+				file.Close()
+				err = os.Remove(info.Path)
+				err = errors.New("the file is too large")
+				part.Close()
+				return
+			}
+		}
+
+		if err == io.EOF || n == 0 {
+			f.partNum++
+			break
+		}
 	}
 
 	return

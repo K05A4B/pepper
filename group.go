@@ -5,10 +5,6 @@ type Group struct {
 	Node      *TreeNode
 }
 
-func (p *Pepper) CreateGroup() *Group {
-	return NewGroup()
-}
-
 // 创建处理函数
 func (g *Group) NewHandler(method string, uri string, handler HandlerFunc) {
 	if g.Node == nil {
@@ -34,11 +30,6 @@ func (g *Group) Get(uri string, handler HandlerFunc) {
 
 func (g *Group) Post(uri string, handler HandlerFunc) {
 	g.NewHandler(METHOD_POST, uri, handler)
-}
-
-// 创建组
-func (g *Group) CreateGroup() *Group {
-	return NewGroup()
 }
 
 // 使用组

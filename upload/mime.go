@@ -1,5 +1,7 @@
 package upload
 
+import "strings"
+
 type Mime struct {
 	Mime []string
 }
@@ -19,6 +21,7 @@ func (m *Mime) Append(s string) {
 }
 
 func (m *Mime) Exist(s string) bool {
+	s = strings.Split(s, ";")[0]
 	if m.Find(s) < 0 {
 		return false
 	} else {
