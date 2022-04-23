@@ -2,220 +2,58 @@ package pepper_test
 
 import (
 	"fmt"
-	"io"
 	"testing"
 
 	"github.com/kz91/pepper"
-	"github.com/kz91/pepper/middleware/log"
-	"github.com/kz91/pepper/upload"
 )
 
-func TestPepperGroup(t *testing.T) {
-	g2 := pepper.NewGroup()
-	g2.All("/test2", func(res pepper.Response, req *pepper.Request) {
-		res.WriteString("Wellcome to g2 test1 page!")
-	})
-
-	g1 := pepper.NewGroup()
-	g1.UseGroup("/", g2)
-	g1.All("/test1", func(res pepper.Response, req *pepper.Request) {
-		fmt.Println("runing test1")
-		res.WriteString("Wellcome to g1 test1 page!")
-	})
-
+func TestPepperCore(t *testing.T) {
 	app := pepper.NewPepper()
-	app.Get("/group1", func(res pepper.Response, req *pepper.Request) {
-		res.WriteString("Wellcome to group1 page")
-	})
-	app.UseGroup("/group1/", g1)
-	app.All("/group2/group3/a!:", func(res pepper.Response, req *pepper.Request) {
-		fmt.Println("path: ", req.TrimPath)
-		res.WriteString(req.TrimPath)
-	})
-
-	app.All("/group2", func(res pepper.Response, req *pepper.Request) {
-		res.WriteString("Group2 Get")
-	})
-
-	fmt.Println("Running")
-	app.Run("127.0.0.1:8080")
-}
-
-func TestPepperMiddleware(t *testing.T) {
-	app := pepper.NewPepper()
-
-	// 调用中间件
-	app.Use(log.NewMiddleware("./test_dir/log"))
-	// app.Use(func(p *pepper.Pepper, res pepper.Response, req *pepper.Request) bool {
-	// 	return false
-	// })
-
-	app.All("/", func(res pepper.Response, req *pepper.Request) {
-		res.Json(map[string]string{
-			"msg":  "首页",
-			"type": "root",
-		})
+	app.DebugMode = true
+	app.All("/test1/child", func(res pepper.Response, req *pepper.Request) {
+		res.WriteString("Hello World")
 	})
 
 	app.All("/test1", func(res pepper.Response, req *pepper.Request) {
-		res.Json(map[string]string{
-			"msg":  "test1",
-			"type": "page",
-		})
+		res.WriteString("Test1")
 	})
 
-	app.All("/test2", func(res pepper.Response, req *pepper.Request) {
-		res.Json(map[string]string{
-			"msg":  "test2",
-			"type": "page",
-		})
+	app.All("/test2/", func(res pepper.Response, req *pepper.Request) {
+		res.WriteString(req.Path)
 	})
 
-	fmt.Println("Running")
-	app.Run(":8081")
+	app.Static("/static/", "./")
+	app.Run(":8080")
 }
 
-func TestPepperStatic(t *testing.T) {
-	app := pepper.NewPepper()
-	app.HttpErrorPages.NotFound = "./404.html"
-	app.Post("/", func(res pepper.Response, req *pepper.Request) {
-		// fmt.Println("test")
-		fmt.Println(req.Query("test"), "test")
-		fmt.Println(req.GetFormStringValue("test1"))
-		res.WriteFile("./pepper_test.go", 5120)
+func TestPepperGroup(t *testing.T) {
+	group1 := pepper.NewGroup()
+
+	group1.Use(func(p *pepper.Pepper, res pepper.Response, req *pepper.Request) bool {
+		fmt.Println("group1", req.Query("auth"))
+		if req.Query("auth") == "true" {
+			return true
+		} else {
+			res.SendErrorPage(403)
+			return false
+		}
 	})
 
-	app.Get("/1", func(res pepper.Response, req *pepper.Request) {
-		res.Redirect("/static/pepper.go")
+	group1.All("/", func(res pepper.Response, req *pepper.Request) {
+		res.WriteString("Welcome to group1!")
 	})
-	app.Static("/static", "./")
-	fmt.Println("Running")
-	app.Run("127.0.0.1:8080")
-}
 
-func TestPepperUpload(t *testing.T) {
+	group1.All("/child", func(res pepper.Response, req *pepper.Request) {
+		res.WriteString("Welcome to group1.child!")
+	})
+
 	app := pepper.NewPepper()
-	app.HttpErrorPages.NotFound = "./404.html"
 	app.DebugMode = true
-	app.Post("/", func(res pepper.Response, req *pepper.Request) {
-		type FileRes struct {
-			Success bool   `json:"success"`
-			Error   string `json:"err"`
-			Msg     string `json:"msg"`
-			Name    string `json:"name"`
-		}
 
-		type Result struct {
-			Code    int       `json:"code"`
-			Success bool      `json:"success"`
-			Result  []FileRes `json:"result"`
-			Error   string    `json:"err"`
-		}
+	app.ErrorPages.Forbidden = func(res pepper.Response, req *pepper.Request) {
+		res.WriteString("<h1>403 Forbidden</h1><p>path: "+req.Path+"</p><p>address: "+req.RemoteAddr+"</p>")
+	}
 
-		r := &upload.Rule{
-			MaxSize:   1024 * 1024 * 30,
-			MinSize:   1048576,
-			MaxNumber: 2,
-		}
-		// r.Mime.Append("text/html")
-		// r.Mime.Append("audio/mpeg")
-
-		f, err := upload.NewReceive(req, "files1", r)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		result := Result{
-			Code:    200,
-			Success: true,
-			Result:  []FileRes{},
-		}
-
-		for {
-			var ErrorText string
-			file, err := f.Receive("./test_dir", 1024*1024*10)
-			if err == io.EOF {
-				break
-			}
-
-			result.Code = 0
-			result.Success = true
-
-			if err != nil {
-				result.Code = 500
-				result.Success = false
-				ErrorText = err.Error()
-				// result.Error = ErrorText
-			}
-
-			// if err == nil {
-			fmt.Println("receive", file.Name)
-			fmt.Println("Content-Type", file.Mime)
-			result.Result = append(result.Result, FileRes{
-				Error:   ErrorText,
-				Success: err == nil,
-				Name:    file.Name,
-				Msg:     file.Path,
-			})
-			// }
-		}
-
-		res.Json(result)
-	})
-	fmt.Println("Running")
-	app.Run("127.0.0.1:8080")
+	app.UseGroup("/group1", group1)
+	app.Run(":8080")
 }
-
-func TestPepperTpl(t *testing.T) {
-	app := pepper.NewPepper()
-	app.HttpErrorPages.NotFound = "./404.html"
-	app.All("/", func(res pepper.Response, req *pepper.Request) {
-		res.Template("./test/test.html", map[string]string{
-			"name": "xiaoming",
-		}, pepper.FuncMap{
-			"get_name": func() string {
-				return "xiaoming"
-			},
-		})
-	})
-	fmt.Println("Running")
-	app.Run("127.0.0.1:8080")
-}
-
-// func TestSessionn(t *testing.T) {
-// 	app := pepper.NewPepper()
-// 	app.DebugMode = true
-// 	app.All("/", func(res pepper.Response, req *pepper.Request) {
-// 		sid := req.GetCookieValue("SID")
-// 		m := session.NewManager()
-
-// 		if err := m.Load("./test_dir/session.dat"); err != nil {
-// 			fmt.Println("load", err)
-// 			return
-// 		}
-
-// 		if sid == "" {
-// 			sid = m.Create()
-// 			res.SetCookie(&http.Cookie{
-// 				Name:   "SID",
-// 				Value:  sid,
-// 				MaxAge: 1000 * 60 * 60 * 6,
-// 			})
-// 		}
-
-// 		name := m.Get(sid, "name")
-// 		if name == nil {
-// 			nameQuery := req.Query("name")
-// 			if name != "" {
-// 				m.Set(sid, "name", nameQuery)
-// 			}
-// 			name = m.Get(sid, "name")
-// 		}
-
-// 		res.SetHeader("Content-Type", "text/html")
-
-// 		res.WriteString("name: ")
-// 		res.WriteString(name.(string))
-// 	})
-// 	app.Run(":8081")
-// }

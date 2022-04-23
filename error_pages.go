@@ -6,28 +6,47 @@ import (
 )
 
 type ErrorPages struct {
-	NotFound            string
-	Forbidden           string
-	InternalServerError string
-	Other               map[int]string
+	Static struct {
+		NotFound            string
+		Forbidden           string
+		InternalServerError string
+		Other               map[int]string
+	}
+	NotFound            HandlerFunc
+	Forbidden           HandlerFunc
+	InternalServerError HandlerFunc
+	Other               map[int]HandlerFunc
 }
 
-func (e *ErrorPages) SendPage(code int, res Response) error {
+func (e *ErrorPages) SendPage(code int, res Response, req *Request) error {
+	var handler HandlerFunc
 	msg := http.StatusText(code)
 	page := ""
+
 	switch code {
 	case 404:
-		page = e.NotFound
+		page = e.Static.NotFound
+		handler = e.NotFound
 	case 403:
-		page = e.Forbidden
+		page = e.Static.Forbidden
+		handler = e.Forbidden
 	case 500:
-		page = e.InternalServerError
+		page = e.Static.InternalServerError
+		handler = e.InternalServerError
 	default:
 		var ok bool
-		page, ok = e.Other[code]
+		page, ok = e.Static.Other[code]
 		if !ok {
 			page = ""
 		}
+
+		handler = e.Other[code]
+	}
+
+	if handler != nil {
+		res.SetStatusCode(code)
+		handler(res, req)
+		return nil
 	}
 
 	if msg == "" {
@@ -42,8 +61,22 @@ func (e *ErrorPages) SendPage(code int, res Response) error {
 	}
 
 	return res.WriteFile(page, 5120)
+
 }
 
 func (e *ErrorPages) Set(code int, file string) {
-	e.Other[code] = file
+	e.Static.Other[code] = file
+}
+
+func (e *ErrorPages) SetHandler(code int, handler HandlerFunc) {
+	e.Other[code] = handler
+}
+
+func NewErrorPages() *ErrorPages {
+	e := &ErrorPages{
+		Other: make(map[int]HandlerFunc),
+	}
+
+	e.Static.Other = make(map[int]string)
+	return e
 }

@@ -1,11 +1,6 @@
 package pepper
 
-import (
-	"fmt"
-	"log"
-	"runtime"
-	"strings"
-)
+import "strings"
 
 const (
 	METHOD_ALL     = "ALL"
@@ -37,8 +32,12 @@ type HandlerPool struct {
 	Patch   *HandlerFunc
 }
 
-// 创建一种请求方式
+// 创建一种请求方式的处理器
 func (h *HandlerPool) NewHandler(method string, handler HandlerFunc) {
+	if handler == nil {
+		return
+	}
+
 	switch strings.ToUpper(method) {
 	case METHOD_GET:
 		h.Get = &handler
@@ -64,79 +63,35 @@ func (h *HandlerPool) NewHandler(method string, handler HandlerFunc) {
 	}
 }
 
-// 调用对应处理函数
-func (h *HandlerPool) Call(method string, res Response, req *Request, p *Pepper, currentNode *TreeNode) {
+// 获取对应处理函数
+func (h *HandlerPool) GetHandlerFunc(method string) *HandlerFunc {
+	var callback *HandlerFunc
 
-	defer recoverHandlerPanic(res, p)
-
-	var callBackFunction *HandlerFunc
+	if h.All != nil {
+		return h.All
+	}
 
 	method = strings.ToUpper(method)
 	switch method {
 	case METHOD_GET:
-		callBackFunction = h.Get
+		callback = h.Get
 	case METHOD_POST:
-		callBackFunction = h.Post
+		callback = h.Post
 	case METHOD_HEAD:
-		callBackFunction = h.Head
+		callback = h.Head
 	case METHOD_PUT:
-		callBackFunction = h.Put
+		callback = h.Put
 	case METHOD_DELETE:
-		callBackFunction = h.Delete
+		callback = h.Delete
 	case METHOD_CONNECT:
-		callBackFunction = h.Connect
+		callback = h.Connect
 	case METHOD_OPTIONS:
-		callBackFunction = h.Options
+		callback = h.Options
 	case METHOD_TRACE:
-		callBackFunction = h.Trace
+		callback = h.Trace
 	case METHOD_PATCH:
-		callBackFunction = h.Patch
+		callback = h.Patch
 	}
 
-	// 如果有ALL函数就调用ALL函数
-	All := h.All
-	if All != nil {
-		callBackFunction = All
-	}
-
-	if res.Code == 0 {
-		res.Code = 200
-	}
-
-	// 判断处理函数是否为 nil
-	if callBackFunction == nil {
-		if !p.DebugMode {
-			res.SendErrorPage(403)
-			return
-		}
-
-		// 在debug模式下输出所有当前节点下的子节点
-		for key := range currentNode.Next {
-			res.WriteString("<a href='" + req.Path[1:] + "/" + key + "'>" + key + "</a><br>")
-		}
-		return
-	}
-
-	// 调用函数
-	(*callBackFunction)(res, req)
-}
-
-func recoverHandlerPanic(res Response, p *Pepper) {
-	if err := recover(); err != nil {
-
-		const size = 64 << 10
-
-		if !p.DebugMode {
-			log.Printf("pepper: panic serving: %v\n", err)
-			res.SendErrorPage(500)
-			return
-		}
-
-		buf := make([]byte, size)
-		buf = buf[:runtime.Stack(buf, false)]
-		errContent := fmt.Sprintf("pepper: panic serving: %v\n%s\n", err, buf)
-
-		log.Print(errContent)
-		res.WriteString(errContent)
-	}
+	return callback
 }

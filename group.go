@@ -1,46 +1,31 @@
 package pepper
 
 type Group struct {
-	ExistRoot bool
-	Node      *TreeNode
+	Trie *TrieNode
 }
 
-// 创建处理函数
+// 创建对应请求处理器
 func (g *Group) NewHandler(method string, uri string, handler HandlerFunc) {
-	if g.Node == nil {
-		g.Node = new(TreeNode)
-	}
-
-	if uri == "/" {
-		g.Node.NewHandler(method, handler)
-		g.ExistRoot = true
-		return
-	}
-
-	g.Node.PushNode(method, uri, handler, true)
+	g.Trie.Insert(method, uri, &handler)
 }
 
-func (g *Group) All(uri string, handler HandlerFunc) {
-	g.NewHandler(METHOD_ALL, uri, handler)
-}
+// 快捷创建请求处理器
+func (g *Group) All(u string, h HandlerFunc)  { g.NewHandler(METHOD_ALL, u, h) }
+func (g *Group) Get(u string, h HandlerFunc)  { g.NewHandler(METHOD_GET, u, h) }
+func (g *Group) Post(u string, h HandlerFunc) { g.NewHandler(METHOD_POST, u, h) }
 
-func (g *Group) Get(uri string, handler HandlerFunc) {
-	g.NewHandler(METHOD_GET, uri, handler)
-}
-
-func (g *Group) Post(uri string, handler HandlerFunc) {
-	g.NewHandler(METHOD_POST, uri, handler)
-}
-
-// 使用组
 func (g *Group) UseGroup(uri string, group *Group) {
-	if g.Node == nil {
-		g.Node = new(TreeNode)
-	}
-	g.Node.PushNodeByGroup(uri, group)
+	g.Trie.InsertByGroup(uri, group)
 }
 
-// 创建组
+func (g *Group) Use(mw ...MiddlewareFunc) {
+	for _, f := range mw {
+		g.Trie.Middleware = append(g.Trie.Middleware, &f)
+	}
+}
+
 func NewGroup() *Group {
-	return &Group{}
+	return &Group{
+		Trie: new(TrieNode),
+	}
 }

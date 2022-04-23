@@ -20,6 +20,8 @@ type Response struct {
 	Resp       http.ResponseWriter
 	ErrorPages *ErrorPages
 	Code       int
+
+	req *Request
 }
 
 // 发送json格式数据
@@ -114,7 +116,7 @@ func (r *Response) WriteReader(reader io.Reader, bufferSize int) error {
 
 // 发送错误页面并返回错误码
 func (r *Response) SendErrorPage(code int) error {
-	return (*ErrorPages).SendPage(r.ErrorPages, code, *r)
+	return (*ErrorPages).SendPage(r.ErrorPages, code, *r, r.req)
 }
 
 // 重定向

@@ -20,6 +20,8 @@ type Request struct {
 	Proto      string
 	Host       string
 	RemoteAddr string
+
+	res       Response
 }
 
 func (r *Request) GetHeader(key string) string {
