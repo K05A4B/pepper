@@ -63,15 +63,20 @@ func (p *Pepper) UseGroup(uri string, group *Group) {
 }
 
 // 运行服务器
-func (p *Pepper) Run(addr string) error {
-	srv := http.NewServeMux()
-	srv.HandleFunc("/", p.handlerPepper)
+func (p *Pepper) Listen(addr string) error {
+	handler := http.NewServeMux()
+	handler.HandleFunc("/", p.handlerPepper)
 
-	if p.CrtFile != "" && p.KeyFile != "" {
-		return http.ListenAndServeTLS(addr, p.CrtFile, p.KeyFile, srv)
+	srv := http.Server{
+		Addr: addr,
+		Handler: handler,
 	}
 
-	return http.ListenAndServe(addr, srv)
+	if p.CrtFile != "" && p.KeyFile != "" {
+		return srv.ListenAndServeTLS(p.CrtFile, p.KeyFile)
+	}
+
+	return srv.ListenAndServe()
 }
 
 // 创建 Pepper 对象

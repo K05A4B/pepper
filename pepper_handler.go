@@ -15,12 +15,14 @@ func (p *Pepper) handlerPepper(res http.ResponseWriter, req *http.Request) {
 	}
 
 	request := &Request{
-		Req:        req,
-		Method:     req.Method,
-		Path:       req.URL.Path,
-		Proto:      req.Proto,
-		Host:       req.Host,
-		RemoteAddr: req.RemoteAddr,
+		Req:           req,
+		Body:          req.Body,
+		Method:        req.Method,
+		Path:          req.URL.Path,
+		Proto:         req.Proto,
+		Host:          req.Host,
+		RemoteAddr:    req.RemoteAddr,
+		ContentLength: req.ContentLength,
 	}
 
 	response.req = request

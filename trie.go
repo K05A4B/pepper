@@ -121,8 +121,8 @@ func (t *TrieNode) SearchNode(uri string, callback func(*TrieNode)) *TrieNode {
 
 		callback(nextNode)
 
-		if currentNode.Trusteeship {
-			return currentNode
+		if nextNode.Trusteeship {
+			return nextNode
 		}
 
 		if nodeNum == (i + 1) {

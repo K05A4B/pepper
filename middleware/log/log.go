@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/kz91/pepper"
-	"github.com/kz91/pepper/internal/utils"
+	"github.com/K05A4B/pepper"
+	"github.com/K05A4B/pepper/internal/utils"
 )
 
 const (

@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/kz91/pepper/internal/utils"
+	"github.com/K05A4B/pepper/internal/utils"
 )
 
 type FuncMap map[string]interface{}
@@ -68,6 +68,17 @@ func (r *Response) SetHeader(key, value string) {
 // 设置cookie
 func (r *Response) SetCookie(opt *http.Cookie) {
 	http.SetCookie(r.Resp, opt)
+}
+
+func (r *Response) RemoveCookie(name string) {
+	cookie, err := r.req.GetCookie(name)
+	if err != nil {
+		return
+	}
+
+	cookie.MaxAge = -1
+
+	r.SetCookie(cookie)
 }
 
 // 发送文件

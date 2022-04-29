@@ -3,6 +3,7 @@ package pepper
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"reflect"
@@ -12,16 +13,17 @@ import (
 
 // 请求信息
 type Request struct {
-	Req        *http.Request
-	Method     string
-	Path       string
-	TrimPath   string
-	Cookie     string
-	Proto      string
-	Host       string
-	RemoteAddr string
-
-	res       Response
+	Req           *http.Request
+	Body          io.ReadCloser
+	Method        string
+	Path          string
+	TrimPath      string
+	Cookie        string
+	Proto         string
+	Host          string
+	RemoteAddr    string
+	ContentLength int64
+	res           Response
 }
 
 func (r *Request) GetHeader(key string) string {

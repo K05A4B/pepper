@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/kz91/pepper/internal/utils"
+	"github.com/K05A4B/pepper/internal/utils"
 )
 
 type FileInfo struct {

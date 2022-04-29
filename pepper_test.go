@@ -2,14 +2,27 @@ package pepper_test
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 
-	"github.com/kz91/pepper"
+	"github.com/K05A4B/pepper"
+	"github.com/K05A4B/pepper/middleware/log"
+	"github.com/K05A4B/pepper/session"
 )
 
+// 测试框架核心功能
 func TestPepperCore(t *testing.T) {
+
+	// 创建 Pepper 对象
 	app := pepper.NewPepper()
+
+	// 调试模式
 	app.DebugMode = true
+
+	// 使用中间件
+	app.Use(log.NewMiddleware("./test_dir/log"))
+
+	// 创建节点
 	app.All("/test1/child", func(res pepper.Response, req *pepper.Request) {
 		res.WriteString("Hello World")
 	})
@@ -22,8 +35,11 @@ func TestPepperCore(t *testing.T) {
 		res.WriteString(req.Path)
 	})
 
+	// 设置静态目录
 	app.Static("/static/", "./")
-	app.Run(":8080")
+
+	// 运行服务器
+	app.Listen(":8080")
 }
 
 func TestPepperGroup(t *testing.T) {
@@ -51,9 +67,119 @@ func TestPepperGroup(t *testing.T) {
 	app.DebugMode = true
 
 	app.ErrorPages.Forbidden = func(res pepper.Response, req *pepper.Request) {
-		res.WriteString("<h1>403 Forbidden</h1><p>path: "+req.Path+"</p><p>address: "+req.RemoteAddr+"</p>")
+		res.WriteString("<h1>403 Forbidden</h1><p>path: " + req.Path + "</p><p>address: " + req.RemoteAddr + "</p>")
 	}
 
 	app.UseGroup("/group1", group1)
-	app.Run(":8080")
+	app.Listen(":8080")
+}
+
+func TestSessionByMemory(t *testing.T) {
+
+	// 创建一个 Session 管理器
+	mery := session.NewMemory(&session.Options{
+		LifeCycle: 12,
+	})
+
+	app := pepper.NewPepper()
+
+	app.DebugMode = true
+	
+	app.Get("/set", func(res pepper.Response, req *pepper.Request) {
+		name := req.Query("name")
+		
+		id := req.GetCookieValue("SessionID")
+		
+		if !mery.Exist(id) {
+			id, _ = mery.Create()
+			res.SetCookie(&http.Cookie{
+				Name: "SessionID",
+				Value: id,
+				MaxAge: 60*60*12,
+			})
+		}
+
+		sess := mery.Get(id)
+		sess.Set("name", name)
+	})
+
+	app.Get("/get", func(res pepper.Response, req *pepper.Request) {
+		id := req.GetCookieValue("SessionID")
+		
+		if !mery.Exist(id) {
+			res.SendErrorPage(403)
+			return
+		}
+
+		sess := mery.Get(id)
+		name := sess.Get("name")
+		if name == nil {
+			res.WriteString("nil")
+			return
+		}
+
+		res.WriteString(name.(string))
+	})
+
+	app.Listen(":8080")
+}
+
+func TestSessionByStore(t *testing.T) {
+
+	// 创建一个 Session 管理器
+	fmt.Println("NewStore")
+	store, err := session.NewStore("./test_dir/session.dat", &session.Options{
+		LifeCycle: 12,
+	})
+	if err != nil {
+		fmt.Println("StoreError:", err)
+		return
+	}
+
+	defer store.Close()
+
+	app := pepper.NewPepper()
+
+	app.DebugMode = true
+	
+	app.Get("/set", func(res pepper.Response, req *pepper.Request) {
+		name := req.Query("name")
+		
+		id := req.GetCookieValue("SessionID")
+		
+		if !store.Exist(id) {
+			id, _ = store.Create()
+			res.SetCookie(&http.Cookie{
+				Name: "SessionID",
+				Value: id,
+				MaxAge: 60*60*12,
+			})
+		}
+				
+		sess := store.Get(id)
+		sess.Set("name", name)
+		if err := store.Save();err != nil {
+			res.WriteString(err.Error())
+		}
+	})
+
+	app.Get("/get", func(res pepper.Response, req *pepper.Request) {
+		id := req.GetCookieValue("SessionID")
+		
+		if !store.Exist(id) {
+			res.SendErrorPage(403)
+			return
+		}
+
+		sess := store.Get(id)
+		name := sess.Get("name")
+		if name == nil {
+			res.WriteString("nil")
+			return
+		}
+
+		res.WriteString(name.(string))
+	})
+
+	app.Listen(":8080")
 }
