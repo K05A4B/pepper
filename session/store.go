@@ -64,6 +64,17 @@ func (s *Store) Close() error {
 	return s.fp.Close()
 }
 
+func (s *Store) Clean() {
+	for id, sess := range s.Data {
+		if time.Now().Unix() > (sess.LifeCycleStart + s.opt.LifeCycle) {
+			s.Remove(id)
+			if err := s.Save(); err != nil {
+				s.opt.HandlerGCError(err)
+			}
+		}
+	}
+}
+
 // 加载数据文件
 func (s *Store) load() error {
 	var err error
@@ -78,6 +89,13 @@ func (s *Store) load() error {
 	return s.Reload()
 }
 
+// 垃圾回收
+func (s *Store) gc() {
+	time.AfterFunc(time.Duration(s.opt.CleanInterval)*time.Second, func() {
+		s.gc()
+	})
+}
+
 // 创建通过 文件加内存来储存 Session 对象的管理器
 func NewStore(file string, opt *Options) (*Store, error) {
 	f := &Store{
@@ -89,6 +107,8 @@ func NewStore(file string, opt *Options) (*Store, error) {
 	if err == io.EOF {
 		return f, nil
 	}
+
+	f.gc()
 
 	return f, err
 }
